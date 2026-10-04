@@ -211,6 +211,15 @@ code{font-family:var(--ff-mono)}
 }
 .bday .cake{flex:none;font-size:1.75rem;line-height:1}
 .bday p{margin:0}
+.bday.soon{background:var(--surface);border-left-color:var(--rule);border:1px solid var(--rule);border-left:3px solid var(--brass-2)}
+.bday.soon .cake{filter:grayscale(1);opacity:.7}
+.bday.soon .eyebrow{display:block;margin-bottom:.25rem}
+.soon-tomorrow{margin:0 0 .25rem}
+.soon-list{margin:0;padding:0;list-style:none;font-size:.875rem}
+.soon-list li{padding:.1rem 0}
+.soon-list span{color:var(--ink-3)}
+.row .soon-cake{filter:grayscale(1);opacity:.75;font-size:1rem;display:inline-flex;align-items:baseline;gap:.1rem;margin:0 auto 0 -.35rem}
+.row .soon-cake b{font-family:var(--ff-mono);font-size:.6875rem;font-weight:500;color:var(--ink-2)}
 .bday small{display:block;color:var(--ink-2);font-size:.8125rem}
 .row-name.tap{cursor:pointer;border-radius:2px}
 .row-name.tap:hover{text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px}

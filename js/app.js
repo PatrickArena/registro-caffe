@@ -55,12 +55,56 @@
     return Number(m[1]) === d.getDate() && Number(m[2]) === d.getMonth() + 1;
   }
 
+  // Quanti giorni mancano al prossimo compleanno: 0 = oggi, -1 = data assente.
+  // Il 29 febbraio, negli anni non bisestili, si festeggia il 28.
+  const SOON_DAYS = 7;
+  const MESI_BREVI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio",
+    "agosto", "settembre", "ottobre", "novembre", "dicembre"];
+
+  function daysUntil(name) {
+    const m = /^(\d{1,2})\/(\d{1,2})$/.exec(String(birthdayOf(name)).trim());
+    if (!m) return -1;
+    const day = Number(m[1]), month = Number(m[2]);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const at = y => {
+      const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+      return new Date(y, month - 1, (month === 2 && day === 29 && !leap) ? 28 : day);
+    };
+    let next = at(today.getFullYear());
+    if (next < today) next = at(today.getFullYear() + 1);
+    return Math.round((next - today) / 86400000);
+  }
+
+  function dateLabel(name) {
+    const m = /^(\d{1,2})\/(\d{1,2})$/.exec(String(birthdayOf(name)).trim());
+    return m ? Number(m[1]) + " " + MESI_BREVI[Number(m[2]) - 1] : "";
+  }
+
   function drawBirthday() {
     const who = snap.roster.filter(p => isBirthday(p.name)).map(p => p.name);
-    $("bday").innerHTML = who.length === 0 ? "" :
-      '<div class="bday"><span class="cake" aria-hidden="true">🎂</span>' +
-      '<p><b>Oggi è il compleanno di ' + esc(list(who)) + '!</b>' +
-      '<small>Tanti auguri dal registro.</small></p></div>';
+    const soon = snap.roster
+      .map(p => ({ name: p.name, d: daysUntil(p.name) }))
+      .filter(x => x.d >= 1 && x.d <= SOON_DAYS)
+      .sort((a, b) => a.d - b.d || a.name.localeCompare(b.name, "it"));
+
+    let html = "";
+    if (who.length) {
+      html += '<div class="bday"><span class="cake" aria-hidden="true">🎂</span>' +
+        '<p><b>Oggi è il compleanno di ' + esc(list(who)) + '!</b>' +
+        '<small>Tanti auguri dal registro.</small></p></div>';
+    }
+    if (soon.length) {
+      const tomorrow = soon.filter(x => x.d === 1).map(x => x.name);
+      const later = soon.filter(x => x.d > 1);
+      html += '<div class="bday soon"><span class="cake" aria-hidden="true">🎂</span><div>' +
+        '<span class="eyebrow">Prossimi compleanni</span>' +
+        (tomorrow.length ? '<p class="soon-tomorrow"><b>Domani è il compleanno di ' + esc(list(tomorrow)) + '</b></p>' : "") +
+        (later.length ? '<ul class="soon-list">' + later.map(x =>
+          '<li><b>' + esc(x.name) + '</b> · tra ' + x.d + ' giorni <span>(' + esc(dateLabel(x.name)) + ')</span></li>').join("") + '</ul>' : "") +
+        '</div></div>';
+    }
+    $("bday").innerHTML = html;
   }
 
   function cls(n) { return n > 0 ? "pos" : n < 0 ? "neg" : "zero"; }
@@ -168,8 +212,10 @@
       // seconda riga sotto il nome costava due nomi visibili.
       html += '<div class="row ' + c + '">' +
         '<span class="pip" aria-hidden="true">' + esc(initials(p.name)) + '</span>' +
-        '<span class="row-name tap' + (isBirthday(p.name) ? ' has-cake' : !hasBirthday(p.name) ? ' no-bday' : '') + '" data-bday="' + p.id + '" role="button" tabindex="0" title="Compleanno di ' + esc(p.name) + '">' + esc(p.name) + '</span>' +
+        '<span class="row-name tap' + (isBirthday(p.name) || (daysUntil(p.name) >= 1 && daysUntil(p.name) <= SOON_DAYS) ? ' has-cake' : !hasBirthday(p.name) ? ' no-bday' : '') + '" data-bday="' + p.id + '" role="button" tabindex="0" title="Compleanno di ' + esc(p.name) + '">' + esc(p.name) + '</span>' +
         (isBirthday(p.name) ? '<span class="cake" title="Oggi compie gli anni" aria-label="Oggi compie gli anni">🎂</span>'
+          : (daysUntil(p.name) >= 1 && daysUntil(p.name) <= SOON_DAYS)
+            ? '<span class="cake soon-cake" title="Compleanno tra ' + daysUntil(p.name) + (daysUntil(p.name) === 1 ? ' giorno' : ' giorni') + '" aria-label="Compleanno tra ' + daysUntil(p.name) + ' giorni">🎂<b>' + daysUntil(p.name) + '</b></span>'
           : !hasBirthday(p.name) ? '<button class="nobday" type="button" data-bday="' + p.id + '" title="Aggiungi il compleanno" aria-label="Aggiungi il compleanno di ' + esc(p.name) + '"></button>' : "") +
         '<span class="row-state">' +
           (p.tokens > 0 ? "in credito" : p.tokens < 0 ? "in debito" : "in pari") +
@@ -263,7 +309,7 @@
   function draw() {
     // Il polling chiama qui ogni pochi secondi: se non e' cambiato niente non
     // si ridisegna, altrimenti l'interfaccia sfarfalla senza motivo.
-    const sig = JSON.stringify([snap.roster, snap.log, snap.drift, snap.status, editing, confirmingId, bumped]);
+    const sig = JSON.stringify([snap.roster, snap.log, snap.drift, snap.status, editing, confirmingId, bumped, new Date().toDateString()]);
     if (sig === lastSignature) return;
     lastSignature = sig;
 
