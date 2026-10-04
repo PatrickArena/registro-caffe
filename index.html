@@ -119,6 +119,27 @@
   </div>
 </aside>
 
+<aside class="sheet" id="bdaySheet" role="dialog" aria-modal="true" aria-labelledby="bdayTitle" aria-hidden="true">
+  <div class="sheet-inner">
+    <h2 id="bdayTitle">Compleanno</h2>
+
+    <div class="field">
+      <span class="eyebrow">Giorno e mese</span>
+      <div class="bday-pick">
+        <select id="bdayDay" aria-label="Giorno"></select>
+        <select id="bdayMonth" aria-label="Mese"></select>
+      </div>
+      <p class="bday-note">Niente anno: basta il giorno per la torta.</p>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="cancel" id="bdayCancel" type="button">Annulla</button>
+      <button class="cancel" id="bdayClear" type="button" hidden>Togli</button>
+      <button class="primary" id="bdaySave" type="button">Salva</button>
+    </div>
+  </div>
+</aside>
+
 <div class="toast" id="toast" role="status">
   <span id="toastText"></span>
   <button id="toastUndo" type="button">Annulla</button>

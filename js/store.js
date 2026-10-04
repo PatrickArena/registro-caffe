@@ -126,6 +126,9 @@ window.Registro = (function () {
     } else if (ev.k === "person.remove") {
       const p = state.people.find(x => x.id === ev.id);
       if (p) p.deletedAt = ev.at;
+    } else if (ev.k === "person.birthday") {
+      const p = state.people.find(x => x.id === ev.id);
+      if (p) p.birthday = ev.birthday || null;
     } else if (ev.k === "round.add") {
       if (!state.rounds.some(r => r.id === ev.id)) {
         state.rounds.push({
@@ -179,7 +182,7 @@ window.Registro = (function () {
   function roster() {
     const bal = balances();
     return people()
-      .map(p => ({ id: p.id, name: p.name, tokens: bal[p.id] || 0 }))
+      .map(p => ({ id: p.id, name: p.name, birthday: p.birthday || "", tokens: bal[p.id] || 0 }))
       .sort((a, b) => a.tokens - b.tokens || a.name.localeCompare(b.name, "it"));
   }
 
@@ -244,6 +247,13 @@ window.Registro = (function () {
     commit({ k: "person.remove", id: id, at: Date.now() });
   }
 
+  // Compleanno come "GG/MM" (niente anno), oppure "" per toglierlo.
+  function setBirthday(id, value) {
+    const m = /^(\d{1,2})\/(\d{1,2})$/.exec(String(value || "").trim());
+    const clean = m ? String(Number(m[1])).padStart(2, "0") + "/" + String(Number(m[2])).padStart(2, "0") : "";
+    commit({ k: "person.birthday", id: id, birthday: clean, at: Date.now() });
+  }
+
   function addRound(payerId, drinkerIds) {
     const clean = drinkerIds.filter(id => id !== payerId);
     if (!payerId || clean.length === 0) return null;
@@ -304,6 +314,12 @@ window.Registro = (function () {
         body: { deleted_at: new Date(ev.at).toISOString() }
       });
     }
+    if (ev.k === "person.birthday") {
+      return api("people?id=eq." + ev.id, {
+        method: "PATCH", prefer: "return=minimal",
+        body: { birthday: ev.birthday || null }
+      });
+    }
     if (ev.k === "round.add") {
       return api("rounds", {
         method: "POST",
@@ -349,12 +365,12 @@ window.Registro = (function () {
     if (status.mode !== "sync") return Promise.resolve();
     const q = "room=eq." + encodeURIComponent(room);
     return Promise.all([
-      api("people?" + q + "&select=id,name,created_at,deleted_at&order=created_at.asc").then(r => r.json()),
+      api("people?" + q + "&select=id,name,birthday,created_at,deleted_at&order=created_at.asc").then(r => r.json()),
       api("rounds?" + q + "&select=id,payer_id,drinker_ids,created_at,undone_at&order=created_at.desc&limit=200").then(r => r.json())
     ]).then(([rp, rr]) => {
       base = {
         people: rp.map(p => ({
-          id: p.id, name: p.name,
+          id: p.id, name: p.name, birthday: p.birthday || null,
           createdAt: Date.parse(p.created_at),
           deletedAt: p.deleted_at ? Date.parse(p.deleted_at) : null
         })),
@@ -442,6 +458,7 @@ window.Registro = (function () {
     snapshot: snapshot,
     addPerson: addPerson,
     removePerson: removePerson,
+    setBirthday: setBirthday,
     addRound: addRound,
     undoRound: undoRound,
     refresh: function () { return status.mode === "sync" ? (outbox.length ? flush() : pull()) : Promise.resolve(); },

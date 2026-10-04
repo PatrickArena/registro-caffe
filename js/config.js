@@ -24,12 +24,8 @@ window.REGISTRO_CONFIG = {
   defaultRoom: "gmco2fvtxoy8ji",
 
   // Ogni quanti secondi ricontrollare se i colleghi hanno registrato un giro.
-  pollSeconds: 5,
+  pollSeconds: 5
 
-  // Compleanni: il nome esattamente come compare nel registro -> "GG/MM".
-  // Niente anno. Il giorno giusto compare la torta accanto al nome; chi non e'
-  // in questo elenco ha una pallina rossa, cosi' si vede chi manca.
-  birthdays: {
-    "Patrick A.": "26/11"
-  }
+  // I compleanni stanno nel database (colonna people.birthday, "GG/MM") e si
+  // inseriscono dall'app toccando un nome: niente da scrivere qui.
 };

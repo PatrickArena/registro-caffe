@@ -6,7 +6,7 @@
  * Quando modifichi un file dell'app, alza VERSION: e' l'unica cosa che dice al
  * browser di buttare la cache vecchia.
  */
-const VERSION = "v6";   // v6: compleanni (torta e pallina rossa), ultimi 10 giri
+const VERSION = "v8";   // v8: compleanni inseriti dall'app, salvati nel database
 const SHELL = "registro-shell-" + VERSION;
 const FONTS = "registro-fonts-" + VERSION;
 

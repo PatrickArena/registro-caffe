@@ -39,9 +39,11 @@
     return s.toUpperCase();
   }
 
-  // Compleanni da config.js: { "Nome": "GG/MM" }. Confronto sulla data locale.
+  // Compleanni dal database: ogni persona del registro ha birthday "GG/MM" o "".
+  // Confronto sulla data locale. Si inseriscono toccando il nome o la pallina.
   function birthdayOf(name) {
-    return ((window.REGISTRO_CONFIG || {}).birthdays || {})[name] || "";
+    const p = snap.roster.find(x => x.name === name);
+    return p ? p.birthday : "";
   }
 
   function hasBirthday(name) { return Boolean(birthdayOf(name)); }
@@ -166,9 +168,9 @@
       // seconda riga sotto il nome costava due nomi visibili.
       html += '<div class="row ' + c + '">' +
         '<span class="pip" aria-hidden="true">' + esc(initials(p.name)) + '</span>' +
-        '<span class="row-name' + (isBirthday(p.name) ? ' has-cake' : !hasBirthday(p.name) ? ' no-bday' : '') + '">' + esc(p.name) + '</span>' +
+        '<span class="row-name tap' + (isBirthday(p.name) ? ' has-cake' : !hasBirthday(p.name) ? ' no-bday' : '') + '" data-bday="' + p.id + '" role="button" tabindex="0" title="Compleanno di ' + esc(p.name) + '">' + esc(p.name) + '</span>' +
         (isBirthday(p.name) ? '<span class="cake" title="Oggi compie gli anni" aria-label="Oggi compie gli anni">🎂</span>'
-          : !hasBirthday(p.name) ? '<span class="nobday" title="Compleanno non segnato" aria-label="Compleanno non segnato"></span>' : "") +
+          : !hasBirthday(p.name) ? '<button class="nobday" type="button" data-bday="' + p.id + '" title="Aggiungi il compleanno" aria-label="Aggiungi il compleanno di ' + esc(p.name) + '"></button>' : "") +
         '<span class="row-state">' +
           (p.tokens > 0 ? "in credito" : p.tokens < 0 ? "in debito" : "in pari") +
         '</span>' +
@@ -313,6 +315,60 @@
 
   function isOpen() { return $("sheet").classList.contains("open"); }
 
+  /* ── Foglio del compleanno ────────────────────────────── */
+
+  const MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio",
+    "agosto", "settembre", "ottobre", "novembre", "dicembre"];
+  const GIORNI_MESE = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  let bdayId = null;
+
+  function fillDays(month, keep) {
+    const max = GIORNI_MESE[month - 1] || 31;
+    const day = Math.min(keep || 1, max);
+    let html = "";
+    for (let d = 1; d <= max; d++) html += '<option value="' + d + '"' + (d === day ? " selected" : "") + ">" + d + "</option>";
+    $("bdayDay").innerHTML = html;
+  }
+
+  function openBday(id) {
+    const p = snap.roster.find(x => x.id === id);
+    if (!p) return;
+    bdayId = id;
+    const m = /^(\d{1,2})\/(\d{1,2})$/.exec(p.birthday || "");
+    const today = new Date();
+    const day = m ? Number(m[1]) : today.getDate();
+    const month = m ? Number(m[2]) : today.getMonth() + 1;
+    $("bdayTitle").textContent = "Compleanno di " + p.name;
+    $("bdayMonth").innerHTML = MESI.map((n, i) =>
+      '<option value="' + (i + 1) + '"' + (i + 1 === month ? " selected" : "") + ">" + n + "</option>").join("");
+    fillDays(month, day);
+    $("bdayClear").hidden = !m;
+    $("bdaySheet").classList.add("open");
+    $("bdaySheet").setAttribute("aria-hidden", "false");
+    $("backdrop").classList.add("open");
+    hideToast();
+  }
+
+  function closeBday() {
+    bdayId = null;
+    $("bdaySheet").classList.remove("open");
+    $("bdaySheet").setAttribute("aria-hidden", "true");
+    if (!isOpen()) $("backdrop").classList.remove("open");
+  }
+
+  function isBdayOpen() { return $("bdaySheet").classList.contains("open"); }
+
+  function saveBday(clear) {
+    const id = bdayId;
+    const name = nameById(id);
+    if (!id) return;
+    const value = clear ? "" : $("bdayDay").value + "/" + $("bdayMonth").value;
+    store.setBirthday(id, value);
+    closeBday();
+    showToast(clear ? "Compleanno di " + name + " tolto."
+      : "Compleanno di " + name + ": " + $("bdayDay").value + " " + MESI[Number($("bdayMonth").value) - 1] + ".");
+  }
+
   function nameById(id) {
     const p = snap.roster.find(x => x.id === id);
     return p ? p.name : "";
@@ -407,6 +463,10 @@
       return;
     }
 
+    if (t.id === "bdayCancel") { closeBday(); return; }
+    if (t.id === "bdayClear") { saveBday(true); return; }
+    if (t.id === "bdaySave") { saveBday(false); return; }
+    if (t.dataset.bday) { openBday(t.dataset.bday); return; }
     if (t.dataset.askKill) { confirmingId = t.dataset.askKill; draw(); return; }
     if (t.dataset.cancelKill) { confirmingId = null; draw(); return; }
     if (t.dataset.kill) {
@@ -460,10 +520,23 @@
     $("hint").textContent = "";
   });
 
-  $("backdrop").addEventListener("click", closeSheet);
+  $("backdrop").addEventListener("click", () => { closeBday(); closeSheet(); });
+
+  // Il nome non e' un <button> (si spezzerebbe l'ellissi del testo lungo):
+  // il tocco lo prende questo ascoltatore, la tastiera quello sotto.
+  $("rows").addEventListener("click", ev => {
+    const n = ev.target.closest(".row-name[data-bday]");
+    if (n && !editing) openBday(n.dataset.bday);
+  });
+  $("rows").addEventListener("keydown", ev => {
+    const n = ev.target.closest && ev.target.closest(".row-name[data-bday]");
+    if (n && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); openBday(n.dataset.bday); }
+  });
+  $("bdayMonth").addEventListener("change", () => fillDays(Number($("bdayMonth").value), Number($("bdayDay").value)));
 
   document.addEventListener("keydown", ev => {
     if (ev.key !== "Escape") return;
+    if (isBdayOpen()) { closeBday(); return; }
     if (isOpen()) { closeSheet(); return; }
     if (confirmingId) { confirmingId = null; draw(); }
   });
