@@ -1,0 +1,455 @@
+/* Il Registro del Caffe'
+ *
+ * Il bancone del bar, non la crema e la terracotta: zinco verdino, ottone,
+ * e i saldi come cifre di un registratore di cassa.
+ *
+ * Tutti i colori passano dai token qui sotto, mai scritti dentro una media
+ * query: cosi' il tema di sistema, la scelta esplicita chiara e la scelta
+ * esplicita scura risolvono tutti e tre come un insieme coerente.
+ */
+
+/* ── Token ──────────────────────────────────────────────── */
+:root{
+  --ground:#E7E8E3;
+  --surface:#F3F4EF;
+  --raise:#DDDFD7;
+  --ink:#191B17;
+  /* I due grigi sono scelti, non ereditati: hanno una punta di verde verso lo
+   * zinco del fondo, e sono tarati per superare 4.5:1 contro --ground, che e'
+   * il vincolo piu' stretto perche' e' il piu' scuro dei due fondi chiari.
+   * Le etichette in maiuscoletto sono da 11px, quindi la soglia del testo
+   * grande non si applica. */
+  --ink-2:#50544D;
+  --ink-3:#65695F;
+  --rule:#CBCEC4;
+  --brass:#8B5E11;
+  --brass-2:#B8862F;
+  --brass-wash:#EDE3CB;
+  --credit:#2C6B4F;
+  --debt:#A33A28;
+  --debt-wash:#F2DDD7;
+  --shade:rgba(25,27,23,.10);
+  --shade-2:rgba(25,27,23,.16);
+
+  --ff-ui:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --ff-display:"Bodoni Moda",Didot,"Times New Roman",serif;
+  --ff-mono:"DM Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+
+  --pad:1.125rem;
+  --radius:3px;
+  --col:32rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#141510;
+    --surface:#1D1F18;
+    --raise:#272A22;
+    --ink:#EDEFE6;
+    --ink-2:#A4A99B;
+    --ink-3:#8D9284;
+    --rule:#31352B;
+    --brass:#D9A64E;
+    --brass-2:#EBBE70;
+    --brass-wash:#3A2E17;
+    --credit:#6FBE93;
+    --debt:#E8836C;
+    --debt-wash:#3A211B;
+    --shade:rgba(0,0,0,.35);
+    --shade-2:rgba(0,0,0,.5);
+  }
+}
+/* ATTENZIONE: questo blocco deve restare identico a quello dentro la media
+ * query qui sopra. Sono due perche' il primo serve al tema di sistema e il
+ * secondo alla scelta esplicita; se cambi un valore, cambialo in entrambi,
+ * altrimenti l'interruttore "scuro" rende colori diversi dallo scuro di
+ * sistema. Il controllo e' in tools/check-tokens.py. */
+:root[data-theme="dark"]{
+  --ground:#141510;
+  --surface:#1D1F18;
+  --raise:#272A22;
+  --ink:#EDEFE6;
+  --ink-2:#A4A99B;
+  --ink-3:#8D9284;
+  --rule:#31352B;
+  --brass:#D9A64E;
+  --brass-2:#EBBE70;
+  --brass-wash:#3A2E17;
+  --credit:#6FBE93;
+  --debt:#E8836C;
+  --debt-wash:#3A211B;
+  --shade:rgba(0,0,0,.35);
+  --shade-2:rgba(0,0,0,.5);
+}
+
+/* ── Base ───────────────────────────────────────────────── */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--ff-ui);
+  font-size:16px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:7rem;
+  overscroll-behavior-y:contain;
+}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;-webkit-tap-highlight-color:transparent}
+input{font:inherit;color:inherit}
+code{font-family:var(--ff-mono)}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px;border-radius:2px}
+.app{max-width:var(--col);margin:0 auto;padding:0 var(--pad)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.eyebrow{
+  font-family:var(--ff-mono);
+  font-size:.6875rem;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+}
+
+/* ── Testata ────────────────────────────────────────────── */
+.masthead{
+  display:flex;align-items:flex-start;gap:.75rem;
+  padding:1.75rem 0 1.25rem;
+  border-bottom:1px solid var(--rule);
+}
+.mark{flex:none;width:2.25rem;height:2.25rem;color:var(--brass);margin-top:.1rem}
+.masthead-text{flex:1 1 auto;min-width:0}
+.masthead h1{
+  font-family:var(--ff-display);
+  font-optical-sizing:auto;
+  font-weight:600;
+  font-size:1.5rem;
+  line-height:1.1;
+  margin:0;
+  letter-spacing:-.01em;
+}
+.masthead p{margin:.2rem 0 0}
+
+.status{
+  flex:none;
+  display:inline-flex;align-items:center;gap:.4rem;
+  padding:.3rem .5rem;margin:-.3rem -.5rem 0 0;
+  border-radius:2rem;
+  font-family:var(--ff-mono);font-size:.625rem;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);white-space:nowrap;
+}
+.status .dot{flex:none;width:.4375rem;height:.4375rem;border-radius:50%;background:var(--ink-3)}
+.status .dot.ok{background:var(--credit)}
+.status .dot.wait{background:var(--brass)}
+.status .dot.off{background:var(--debt)}
+
+/* ── Di chi e' il turno ─────────────────────────────────── */
+.turn{
+  margin:1.25rem 0;
+  padding:1.25rem 1.25rem 1.375rem;
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-top:2px solid var(--brass);
+  border-radius:var(--radius);
+}
+.turn-name{
+  font-family:var(--ff-display);
+  font-optical-sizing:auto;
+  font-weight:500;
+  font-size:clamp(2.25rem,11vw,3.25rem);
+  line-height:1.02;
+  letter-spacing:-.02em;
+  margin:.5rem 0 0;
+  text-wrap:balance;
+}
+.turn-note{margin:.5rem 0 0;color:var(--ink-2);font-size:.9375rem}
+.turn-note b{font-family:var(--ff-mono);font-weight:500;font-variant-numeric:tabular-nums}
+.turn.is-even .turn-name{font-size:clamp(1.5rem,7vw,2rem);color:var(--ink-2)}
+
+/* ── Registro ───────────────────────────────────────────── */
+.section-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:.75rem;
+  margin:1.75rem 0 .5rem;
+}
+.ghost-btn{
+  font-size:.8125rem;font-weight:500;color:var(--brass);
+  padding:.35rem .5rem;margin:-.35rem -.5rem;border-radius:2px;
+}
+.ghost-btn:hover{background:var(--brass-wash)}
+
+.ledger{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:var(--radius);
+  overflow:hidden;
+}
+.row{
+  display:flex;align-items:center;gap:.75rem;
+  padding:.5rem .875rem;
+  border-bottom:1px solid var(--rule);
+  border-left:3px solid transparent;
+}
+.rows .row:last-child{border-bottom:0}
+.row.pos{border-left-color:var(--credit)}
+.row.neg{border-left-color:var(--debt)}
+.pip{
+  flex:none;width:1.875rem;height:1.875rem;border-radius:50%;
+  display:grid;place-items:center;
+  background:var(--raise);border:1px solid var(--rule);
+  font-size:.75rem;font-weight:600;color:var(--ink-2);letter-spacing:.02em;
+}
+.row-name.has-cake,.row-name.no-bday{flex:0 1 auto}
+.row .cake{flex:none;font-size:1.25rem;line-height:1;margin:0 auto 0 -.35rem}
+.row .nobday{flex:none;width:.5rem;height:.5rem;border-radius:50%;background:var(--debt);margin:0 auto 0 -.25rem}
+.bday{
+  display:flex;align-items:center;gap:.75rem;
+  margin:1.25rem 0 0;padding:.875rem 1rem;
+  background:var(--brass-wash);
+  border-left:3px solid var(--brass);
+  border-radius:var(--radius);
+  font-size:.9375rem;
+}
+.bday .cake{flex:none;font-size:1.75rem;line-height:1}
+.bday p{margin:0}
+.bday small{display:block;color:var(--ink-2);font-size:.8125rem}
+.row-name{
+  flex:1 1 auto;min-width:0;
+  font-weight:500;font-size:1.1875rem;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.row-state{
+  flex:none;
+  font-family:var(--ff-mono);font-size:.625rem;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  text-align:right;white-space:nowrap;
+}
+.tally{
+  flex:none;
+  font-family:var(--ff-mono);font-weight:500;font-size:1.5rem;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;
+  min-width:2.375rem;text-align:right;line-height:1.1;
+}
+.tally.pos{color:var(--credit)}
+.tally.neg{color:var(--debt)}
+.tally.zero{color:var(--ink-3)}
+.tally.bump{animation:bump .45s cubic-bezier(.2,.9,.3,1)}
+@keyframes bump{
+  0%{transform:scale(1)}
+  35%{transform:scale(1.22)}
+  100%{transform:scale(1)}
+}
+.kill{
+  flex:none;width:2rem;height:2rem;border-radius:50%;
+  display:grid;place-items:center;
+  color:var(--debt);background:var(--debt-wash);
+}
+.kill svg{width:1rem;height:1rem}
+
+.row.confirming{background:var(--debt-wash);border-left-color:var(--debt)}
+.confirm-text{flex:1 1 auto;font-size:.9375rem;min-width:0}
+.confirm-text small{display:block;color:var(--ink-2);font-size:.8125rem}
+.mini{
+  padding:.4rem .7rem;border-radius:2px;font-size:.8125rem;font-weight:600;
+  border:1px solid var(--rule);
+}
+.mini.danger{background:var(--debt);border-color:var(--debt);color:#fff}
+
+.add{
+  display:flex;align-items:center;gap:.5rem;
+  padding:.625rem .75rem .625rem 1rem;
+  background:var(--raise);
+  border-top:1px solid var(--rule);
+}
+.add input{flex:1 1 auto;min-width:0;background:transparent;border:0;padding:.5rem 0;font-size:1rem}
+.add input::placeholder{color:var(--ink-3)}
+.add button{
+  flex:none;padding:.5rem .875rem;border-radius:2px;
+  background:var(--ink);color:var(--ground);font-size:.875rem;font-weight:600;
+}
+.add button:disabled{opacity:.35;cursor:not-allowed}
+.hint{margin:.5rem 0 0;font-size:.8125rem;color:var(--debt);min-height:1.2em}
+
+.empty{padding:2.25rem 1.25rem;text-align:center}
+.empty p{margin:.5rem 0 0;color:var(--ink-2);font-size:.9375rem}
+.empty .eyebrow{display:block}
+
+/* ── Storico ────────────────────────────────────────────── */
+.log-item{
+  display:flex;align-items:flex-start;gap:.75rem;
+  padding:.75rem 0;border-bottom:1px dashed var(--rule);font-size:.9375rem;
+}
+.log-item:last-child{border-bottom:0}
+.log-when{
+  flex:none;width:3.25rem;
+  font-family:var(--ff-mono);font-size:.75rem;color:var(--ink-3);
+  padding-top:.15rem;font-variant-numeric:tabular-nums;
+}
+.log-what{flex:1 1 auto;min-width:0}
+.log-what b{font-weight:600}
+.log-what span{color:var(--ink-2)}
+.undo{flex:none;font-size:.8125rem;font-weight:600;color:var(--brass)}
+
+.flag{
+  margin:1rem 0 0;padding:.75rem .875rem;
+  background:var(--debt-wash);
+  border-left:3px solid var(--debt);
+  border-radius:var(--radius);
+  font-size:.875rem;
+}
+.flag b{font-family:var(--ff-mono);font-weight:500}
+
+/* ── Condivisione e note ────────────────────────────────── */
+.panel{
+  margin:1.75rem 0 0;padding:1rem;
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:var(--radius);
+}
+.panel .eyebrow{display:block;margin-bottom:.4rem}
+.panel p{margin:0;font-size:.875rem;color:var(--ink-2)}
+.panel code{
+  display:block;margin:.25rem 0 .75rem;
+  font-size:.9375rem;color:var(--ink);word-break:break-all;
+}
+.panel .mini{background:var(--raise)}
+
+.tip{
+  display:flex;align-items:flex-start;gap:.75rem;
+  margin:1.25rem 0 0;padding:.875rem 1rem;
+  background:var(--brass-wash);
+  border-left:3px solid var(--brass);
+  border-radius:var(--radius);
+  font-size:.875rem;
+}
+.tip p{margin:0;flex:1 1 auto}
+.tip .close{flex:none;color:var(--brass);font-weight:700;padding:0 .25rem}
+
+/* ── Barra dell'azione ──────────────────────────────────── */
+.dock{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  padding:.875rem var(--pad) calc(.875rem + env(safe-area-inset-bottom));
+  background:linear-gradient(to top,var(--ground) 55%,transparent);
+}
+.dock-inner{max-width:var(--col);margin:0 auto}
+.primary{
+  display:flex;align-items:center;justify-content:center;gap:.5rem;
+  width:100%;padding:1rem;
+  background:var(--ink);color:var(--ground);
+  border-radius:var(--radius);
+  font-size:1rem;font-weight:600;letter-spacing:.01em;
+  box-shadow:0 6px 20px var(--shade);
+}
+.primary:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.primary svg{width:1.125rem;height:1.125rem}
+
+/* ── Foglio del nuovo giro ──────────────────────────────── */
+.backdrop{
+  position:fixed;inset:0;z-index:30;
+  background:rgba(10,11,8,.5);
+  opacity:0;pointer-events:none;transition:opacity .24s ease;
+}
+.backdrop.open{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  max-height:88vh;overflow-y:auto;
+  background:var(--surface);
+  border-top:2px solid var(--brass);
+  border-radius:10px 10px 0 0;
+  padding:1.25rem var(--pad) calc(1.25rem + env(safe-area-inset-bottom));
+  transform:translateY(101%);
+  transition:transform .28s cubic-bezier(.25,.9,.25,1);
+  box-shadow:0 -10px 40px var(--shade-2);
+}
+.sheet.open{transform:translateY(0)}
+.sheet-inner{max-width:var(--col);margin:0 auto}
+.sheet h2{
+  font-family:var(--ff-display);font-optical-sizing:auto;
+  font-weight:600;font-size:1.375rem;margin:.25rem 0 1.25rem;
+}
+.field{margin-bottom:1.375rem}
+.field > .eyebrow{display:block;margin-bottom:.5rem}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem}
+.chip{
+  display:inline-flex;align-items:center;gap:.4rem;
+  padding:.5rem .75rem;
+  border:1px solid var(--rule);border-radius:2rem;
+  font-size:.9375rem;font-weight:500;
+  background:var(--ground);
+}
+.chip .n{font-family:var(--ff-mono);font-size:.75rem;color:var(--ink-3)}
+.chip[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:var(--ground)}
+.chip[aria-pressed="true"] .n{color:var(--ground);opacity:.75}
+.chip:disabled{opacity:.3;cursor:not-allowed}
+
+.preview{
+  padding:.875rem;
+  background:var(--ground);
+  border:1px dashed var(--rule);
+  border-radius:var(--radius);
+  font-family:var(--ff-mono);font-size:.9375rem;
+  font-variant-numeric:tabular-nums;
+  min-height:3rem;
+  display:flex;align-items:center;flex-wrap:wrap;gap:.25rem .875rem;
+}
+.preview .p{color:var(--credit);font-weight:500}
+.preview .m{color:var(--debt)}
+.preview .idle{color:var(--ink-3);font-family:var(--ff-ui)}
+
+.sheet-actions{display:flex;gap:.625rem;margin-top:.5rem}
+.sheet-actions .primary{flex:1 1 auto;box-shadow:none}
+.sheet-actions .cancel{
+  flex:none;padding:1rem 1.125rem;
+  border:1px solid var(--rule);border-radius:var(--radius);
+  font-weight:600;font-size:1rem;
+}
+
+/* ── Avviso temporaneo ──────────────────────────────────── */
+.toast{
+  position:fixed;z-index:50;
+  left:var(--pad);right:var(--pad);bottom:5.5rem;
+  max-width:var(--col);margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  padding:.875rem 1rem;
+  background:var(--ink);color:var(--ground);
+  border-radius:var(--radius);font-size:.9375rem;
+  box-shadow:0 8px 28px var(--shade-2);
+  /* Chiuso, l'avviso deve essere invisibile E fuori dai tocchi, senza contare
+   * sulla geometria. Una traslazione in percentuale non basta: se il movimento
+   * (140% di 52px = 73px) e' piu' corto della distanza da terra (bottom:5.5rem
+   * = 88px), l'avviso resta in schermo, copre il pulsante "Nuovo giro" e — con
+   * z-index 50 sopra il 20 della barra — ne intercetta i tocchi anche quando
+   * sembra assente. Era esattamente questo il bug. */
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transform:translateY(.75rem);
+  transition:opacity .22s ease,
+             transform .28s cubic-bezier(.25,.9,.25,1),
+             visibility 0s linear .28s;
+}
+.toast.open{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  transform:translateY(0);
+  transition-delay:0s;
+}
+.toast button{font-weight:600;color:var(--brass-2);flex:none}
+.toast button[hidden]{display:none}
+
+footer.credits{
+  max-width:var(--col);margin:2.5rem auto 0;
+  padding:1.25rem var(--pad) 0;
+  border-top:1px solid var(--rule);
+  color:var(--ink-3);font-size:.8125rem;
+}
+footer.credits p{margin:0}
+.build{
+  margin-top:.35rem !important;
+  font-family:var(--ff-mono);font-size:.6875rem;
+  letter-spacing:.06em;color:var(--ink-3);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
