@@ -57,7 +57,6 @@
 
   // Quanti giorni mancano al prossimo compleanno: 0 = oggi, -1 = data assente.
   // Il 29 febbraio, negli anni non bisestili, si festeggia il 28.
-  const SOON_DAYS = 7;
   const MESI_BREVI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio",
     "agosto", "settembre", "ottobre", "novembre", "dicembre"];
 
@@ -83,10 +82,13 @@
 
   function drawBirthday() {
     const who = snap.roster.filter(p => isBirthday(p.name)).map(p => p.name);
-    const soon = snap.roster
+    // Il prossimo compleanno (dal giorno dopo in poi), come semplice informazione:
+    // nessun avviso nei giorni prima, la torta arriva solo il giorno giusto.
+    const next = snap.roster
       .map(p => ({ name: p.name, d: daysUntil(p.name) }))
-      .filter(x => x.d >= 1 && x.d <= SOON_DAYS)
+      .filter(x => x.d >= 1)
       .sort((a, b) => a.d - b.d || a.name.localeCompare(b.name, "it"));
+    const nextNames = next.length ? next.filter(x => x.d === next[0].d).map(x => x.name) : [];
 
     let html = "";
     if (who.length) {
@@ -94,15 +96,9 @@
         '<p><b>Oggi è il compleanno di ' + esc(list(who)) + '!</b>' +
         '<small>Tanti auguri dal registro.</small></p></div>';
     }
-    if (soon.length) {
-      const tomorrow = soon.filter(x => x.d === 1).map(x => x.name);
-      const later = soon.filter(x => x.d > 1);
-      html += '<div class="bday soon"><span class="cake" aria-hidden="true">🎂</span><div>' +
-        '<span class="eyebrow">Prossimi compleanni</span>' +
-        (tomorrow.length ? '<p class="soon-tomorrow"><b>Domani è il compleanno di ' + esc(list(tomorrow)) + '</b></p>' : "") +
-        (later.length ? '<ul class="soon-list">' + later.map(x =>
-          '<li><b>' + esc(x.name) + '</b> · tra ' + x.d + ' giorni <span>(' + esc(dateLabel(x.name)) + ')</span></li>').join("") + '</ul>' : "") +
-        '</div></div>';
+    if (nextNames.length) {
+      html += '<p class="bday-next"><span class="eyebrow">Prossimo compleanno</span> ' +
+        esc(list(nextNames)) + ' · ' + esc(dateLabel(nextNames[0])) + '</p>';
     }
     $("bday").innerHTML = html;
   }
@@ -212,10 +208,8 @@
       // seconda riga sotto il nome costava due nomi visibili.
       html += '<div class="row ' + c + '">' +
         '<span class="pip" aria-hidden="true">' + esc(initials(p.name)) + '</span>' +
-        '<span class="row-name tap' + (isBirthday(p.name) || (daysUntil(p.name) >= 1 && daysUntil(p.name) <= SOON_DAYS) ? ' has-cake' : !hasBirthday(p.name) ? ' no-bday' : '') + '" data-bday="' + p.id + '" role="button" tabindex="0" title="Compleanno di ' + esc(p.name) + '">' + esc(p.name) + '</span>' +
+        '<span class="row-name tap' + (isBirthday(p.name) ? ' has-cake' : !hasBirthday(p.name) ? ' no-bday' : '') + '" data-bday="' + p.id + '" role="button" tabindex="0" title="Compleanno di ' + esc(p.name) + '">' + esc(p.name) + '</span>' +
         (isBirthday(p.name) ? '<span class="cake" title="Oggi compie gli anni" aria-label="Oggi compie gli anni">🎂</span>'
-          : (daysUntil(p.name) >= 1 && daysUntil(p.name) <= SOON_DAYS)
-            ? '<span class="cake soon-cake" title="Compleanno tra ' + daysUntil(p.name) + (daysUntil(p.name) === 1 ? ' giorno' : ' giorni') + '" aria-label="Compleanno tra ' + daysUntil(p.name) + ' giorni">🎂<b>' + daysUntil(p.name) + '</b></span>'
           : !hasBirthday(p.name) ? '<button class="nobday" type="button" data-bday="' + p.id + '" title="Aggiungi il compleanno" aria-label="Aggiungi il compleanno di ' + esc(p.name) + '"></button>' : "") +
         '<span class="row-state">' +
           (p.tokens > 0 ? "in credito" : p.tokens < 0 ? "in debito" : "in pari") +
@@ -304,6 +298,41 @@
         mostra(hit ? hit[1] : "");
       })
       .catch(() => mostra(""));
+  }
+
+  /* ── Conteggio anonimo dei dispositivi ─────────────────── */
+  // Ogni telefono si genera un codice casuale (niente nomi) e segnala solo che
+  // esiste, se l'app e' installata e quale versione usa. Al massimo una volta
+  // all'ora. Serve a sapere quanti dispositivi usano il registro.
+  const APP_VERSION = "v10";
+  function pingDevice() {
+    const cfg = window.REGISTRO_CONFIG || {};
+    if (PREVIEW || !cfg.supabaseUrl || !cfg.supabaseAnonKey || snap.status.mode !== "sync") return;
+    let id = "", last = 0;
+    try {
+      id = localStorage.getItem("registro-caffe.device") || "";
+      last = Number(localStorage.getItem("registro-caffe.device-ping")) || 0;
+    } catch (e) {}
+    if (Date.now() - last < 3600000) return;
+    if (!/^[0-9a-f-]{36}$/.test(id)) {
+      id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+        : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); });
+      try { localStorage.setItem("registro-caffe.device", id); } catch (e) {}
+    }
+    const installed = navigator.standalone === true ||
+      Boolean(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+    const key = cfg.supabaseAnonKey;
+    const headers = { apikey: key, "Content-Type": "application/json",
+      Prefer: "return=minimal,resolution=merge-duplicates" };
+    if (key.slice(0, 3) === "eyJ") headers.Authorization = "Bearer " + key;
+    fetch(cfg.supabaseUrl.replace(/\/+$/, "") + "/rest/v1/devices", {
+      method: "POST", headers: headers,
+      body: JSON.stringify([{ id: id, room: snap.room, installed: installed,
+        version: APP_VERSION, last_seen: new Date().toISOString() }])
+    }).then(res => {
+      if (res.ok) { try { localStorage.setItem("registro-caffe.device-ping", String(Date.now())); } catch (e) {} }
+    }).catch(() => { /* offline: si riprova alla prossima apertura */ });
   }
 
   function draw() {
@@ -602,6 +631,10 @@
   snap = store.init();
   draw();
   drawVersion();
+  pingDevice();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") pingDevice();
+  });
   if (!PREVIEW) drawInstallTip();
 
   if (!PREVIEW && "serviceWorker" in navigator) {
